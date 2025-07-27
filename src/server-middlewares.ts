@@ -69,22 +69,24 @@ const timeoutMiddleware = [timeout("30s"),
   if (!req.timedout) next();
 }];
 
-// Middleware to validate JSON-RPC requests
+// Middleware to validate JSON-RPC requests (relaxed for MCP protocol)
 const validationMiddleware = [
-  body("jsonrpc").equals("2.0"),
-  body("method").isString().isLength({ min: 1, max: 100 }),
-  body("params").isObject(),
-  body("id").optional().isString(),
+  // Only validate if the request contains JSON-RPC fields
+  body("jsonrpc").optional().equals("2.0"),
+  body("method").optional().isString().isLength({ min: 1, max: 100 }),
+  body("params").optional().isObject(),
+  body("id").optional(),
   (req: Request, res: Response, next: NextFunction) => {
     const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({
-      error: "Validation failed",
-      details: errors.array(),
-    });
-  }
-  next();
-}];
+    // Only fail validation if there are errors AND the request claims to be JSON-RPC
+    if (!errors.isEmpty() && req.body.jsonrpc) {
+      return res.status(400).json({
+        error: "Validation failed",
+        details: errors.array(),
+      });
+    }
+    next();
+  }];
 
 export const securityMiddlewares = [
   authenticateJWT,

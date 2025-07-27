@@ -1,0 +1,9 @@
+{
+  "method": "tools/call",
+  "params": {
+    "name": "list_todos",
+    "arguments": {}
+  },
+  "id": "1",
+  "jsonrpc": "2.0"
+}

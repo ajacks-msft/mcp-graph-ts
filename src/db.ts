@@ -2,9 +2,13 @@ import { z } from 'zod';
 import Database from "better-sqlite3";
 import { logger } from "./helpers/logs.js";
 
-const TodoSchema = z.object({
+const TodoInputSchema = z.object({
   title: z.string().min(1).max(255).regex(/^[a-zA-Z0-9\s\-_.,!?]+$/),
-  id: z.number().positive().int()
+});
+
+const TodoUpdateSchema = z.object({
+  id: z.number().positive().int(),
+  text: z.string().min(1).max(255).regex(/^[a-zA-Z0-9\s\-_.,!?]+$/).optional(),
 });
 
 const log = logger("db");
@@ -29,7 +33,7 @@ try {
 
 export async function addTodo(text: string) {
   log.info(`Adding TODO: ${text}`);
-  const validatedInput = TodoSchema.parse({ title: text });
+  const validatedInput = TodoInputSchema.parse({ title: text });
 
   const stmt = db.prepare(`INSERT INTO todos (text, completed) VALUES (?, 0)`);
   return stmt.run(validatedInput.title);
@@ -61,10 +65,10 @@ export async function completeTodo(id: number) {
 export async function updateTodoText(id: number, text: string) {
   log.info(`Updating TODO with ID: ${id}`);
 
-  const validatedInput = TodoSchema.parse({ title: text, id });
+  const validatedInput = TodoUpdateSchema.parse({ id, text });
 
   const stmt = db.prepare(`UPDATE todos SET text = ? WHERE id = ?`);
-  return stmt.run(validatedInput.title, validatedInput.id);
+  return stmt.run(validatedInput.text, validatedInput.id);
 }
 
 export async function deleteTodo(id: number) {
