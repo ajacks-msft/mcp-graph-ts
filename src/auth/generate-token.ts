@@ -14,7 +14,7 @@ import { UserRole } from "./authorization.js";
 
 // define dummy values for JWT_SECRET, JWT_EXPIRY, and PAYLOAD
 const JWT_SECRET = randomBytes(32).toString('base64');
-const JWT_EXPIRY = "1h";
+const JWT_EXPIRY = "30d"; // Changed from 1h to 30 days
 const JWT_AUDIENCE = "mcp-client";
 const JWT_ISSUER = "mcp-server";
 const PAYLOAD = {

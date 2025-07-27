@@ -7,7 +7,7 @@
 
     "mcp-server-remote": {
       "type": "http",
-      "url": "https://<env-name>.<container-id>.<region>.azurecontainerapps.io/mcp"
+      "url": "https://mcp-container-ts.victoriouswater-684a0151.eastus2.azurecontainerapps.io/mcp"
     }
   }
 }

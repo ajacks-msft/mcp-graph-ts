@@ -4,7 +4,7 @@ import cors from "cors";
 import { body, validationResult } from "express-validator";
 import rateLimit from "express-rate-limit";
 import express, { NextFunction, Request, Response } from "express";
-import { logger } from "./helpers/logs";
+import { logger } from "./helpers/logs.js";
 import { authenticateJWT } from "./auth/jwt.js";
 const log = logger("middleware");
 
