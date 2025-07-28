@@ -4,6 +4,33 @@ param location string = resourceGroup().location
 @description('Tags that will be applied to all resources')
 param tags object = {}
 
+// JWT and Microsoft Graph parameters - these will come from azd environment variables
+@description('Microsoft Graph tenant ID')
+param tenantId string = ''
+
+@description('Microsoft Graph client ID') 
+param clientId string = ''
+
+@description('Microsoft Graph client secret')
+@secure()
+param clientSecret string = ''
+
+@description('JWT audience')
+param jwtAudience string = 'mcp-client'
+
+@description('JWT issuer')
+param jwtIssuer string = 'mcp-server'
+
+@description('JWT expiry')
+param jwtExpiry string = '1h'
+
+@description('JWT secret')
+@secure()
+param jwtSecret string = ''
+
+@description('JWT token')
+@secure()
+param jwtToken string = ''
 
 param mcpContainerTsExists bool
 
@@ -97,6 +124,38 @@ module mcpContainerTs 'br/public:avm/res/app/container-app:0.8.0' = {
           {
             name: 'PORT'
             value: '3000'
+          }
+          {
+            name: 'TENANT_ID'
+            value: tenantId
+          }
+          {
+            name: 'CLIENT_ID'
+            value: clientId
+          }
+          {
+            name: 'CLIENT_SECRET'
+            value: clientSecret
+          }
+          {
+            name: 'JWT_AUDIENCE'
+            value: jwtAudience
+          }
+          {
+            name: 'JWT_ISSUER'
+            value: jwtIssuer
+          }
+          {
+            name: 'JWT_EXPIRY'
+            value: jwtExpiry
+          }
+          {
+            name: 'JWT_SECRET'
+            value: jwtSecret
+          }
+          {
+            name: 'JWT_TOKEN'
+            value: jwtToken
           }
         ]
       }

@@ -13,6 +13,30 @@
       },
       "principalId": {
         "value": "${AZURE_PRINCIPAL_ID}"
+      },
+      "tenantId": {
+        "value": "${TENANT_ID}"
+      },
+      "clientId": {
+        "value": "${CLIENT_ID}"
+      },
+      "clientSecret": {
+        "value": "${CLIENT_SECRET}"
+      },
+      "jwtAudience": {
+        "value": "${JWT_AUDIENCE}"
+      },
+      "jwtIssuer": {
+        "value": "${JWT_ISSUER}"
+      },
+      "jwtExpiry": {
+        "value": "${JWT_EXPIRY}"
+      },
+      "jwtSecret": {
+        "value": "${JWT_SECRET}"
+      },
+      "jwtToken": {
+        "value": "${JWT_TOKEN}"
       }
     }
 }

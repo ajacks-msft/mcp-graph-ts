@@ -11,6 +11,37 @@ param location string
 
 param mcpContainerTsExists bool
 
+@description('The principal ID for role assignments')
+param principalId string = ''
+
+// JWT and Microsoft Graph parameters
+@description('Microsoft Graph tenant ID')
+param tenantId string = ''
+
+@description('Microsoft Graph client ID')
+param clientId string = ''
+
+@description('Microsoft Graph client secret')
+@secure()
+param clientSecret string = ''
+
+@description('JWT audience')
+param jwtAudience string = 'mcp-client'
+
+@description('JWT issuer') 
+param jwtIssuer string = 'mcp-server'
+
+@description('JWT expiry')
+param jwtExpiry string = '1h'
+
+@description('JWT secret')
+@secure()
+param jwtSecret string = ''
+
+@description('JWT token')
+@secure() 
+param jwtToken string = ''
+
 // Tags that should be applied to all resources.
 // 
 // Note that 'azd-service-name' tags should be applied separately to service host resources.
@@ -34,6 +65,14 @@ module resources 'resources.bicep' = {
     location: location
     tags: tags
     mcpContainerTsExists: mcpContainerTsExists
+    tenantId: tenantId
+    clientId: clientId
+    clientSecret: clientSecret
+    jwtAudience: jwtAudience
+    jwtIssuer: jwtIssuer
+    jwtExpiry: jwtExpiry
+    jwtSecret: jwtSecret
+    jwtToken: jwtToken
   }
 }
 
