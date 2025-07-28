@@ -27,6 +27,7 @@
   "description": "An MCP server that implements Authentication and Authorization with Streamable HTTP and communicates with a local sqlite database.",
   "dependencies": {
     "@azure/identity": "^4.9.1",
+    "@microsoft/microsoft-graph-client": "^3.0.7",
     "@modelcontextprotocol/sdk": "^1.15.0",
     "better-sqlite3": "^11.9.1",
     "chalk": "^5.4.1",

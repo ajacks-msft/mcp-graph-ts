@@ -11,8 +11,10 @@ import {
 import { Request, Response } from 'express';
 import { randomUUID } from 'node:crypto';
 import { logger } from './helpers/logs.js';
-import { TodoTools } from './tools.js';
+import { TodoTools } from './todoTools.js';
+import { MicrosoftTools } from './microsoftTools.js';
 import { AuthenticatedUser, hasPermission, Permission } from './auth/authorization.js';
+import { MicrosoftAuthManager } from './auth/microsoft.js';
 
 const log = logger('server');
 const JSON_RPC = '2.0';
@@ -33,7 +35,10 @@ export class StreamableHTTPServer {
       'list_todos': [Permission.READ_TODOS],
       'complete_todo': [Permission.UPDATE_TODOS],
       'delete_todo': [Permission.DELETE_TODOS],
-      'updateTodoText': [Permission.UPDATE_TODOS]
+      'updateTodoText': [Permission.UPDATE_TODOS],
+      'microsoft_graph': [Permission.MICROSOFT_GRAPH],
+      'azure_resource': [Permission.AZURE_RESOURCE],
+      'microsoft_auth_status': [Permission.MICROSOFT_AUTH]
     };
     
     return toolPermissions[toolName] || [];
@@ -93,16 +98,33 @@ export class StreamableHTTPServer {
     this.server.setRequestHandler(ListToolsRequestSchema, async (request) => {
       const user = this.currentUser;
       
+      log.info(`Tool list requested by user: ${user?.id || 'unknown'} with role: ${user?.role || 'none'}`);
+      
       // Check if user has permission to list tools
       if (!user || !hasPermission(user, Permission.LIST_TOOLS)) {
         log.warn(`User ${user?.id || 'unknown'} denied permission to list tools`);
         return this.createRPCErrorResponse('Insufficient permissions to list tools');
       }
 
+      // Get available tools based on authentication status
+      const microsoftAuth = MicrosoftAuthManager.getInstance();
+      log.info(`Microsoft auth available: ${!!microsoftAuth}`);
+      
+      const allTools = [
+        ...TodoTools,
+        ...(microsoftAuth ? MicrosoftTools : [])
+      ];
+      
+      log.info(`Total tools before filtering: ${allTools.length} - ${allTools.map(t => t.name).join(', ')}`);
+
       // Filter tools based on user permissions
-      const allowedTools = TodoTools.filter(tool => {
+      const allowedTools = allTools.filter(tool => {
         const requiredPermissions = this.getToolRequiredPermissions(tool.name);
-        return requiredPermissions.some((permission: Permission) => hasPermission(user, permission));
+        const userHasPermission = requiredPermissions.some((permission: Permission) => 
+          hasPermission(user, permission)
+        );
+        log.info(`Tool ${tool.name} requires [${requiredPermissions.join(', ')}] - user has access: ${userHasPermission}`);
+        return userHasPermission;
       });
 
       log.info(`User ${user.id} listed ${allowedTools.length} available tools`);
@@ -118,7 +140,14 @@ export class StreamableHTTPServer {
         const args = request.params.arguments;
         const toolName = request.params.name;
         const user = this.currentUser;
-        const tool = TodoTools.find((tool) => tool.name === toolName);
+        
+        // Find tool from all available tools
+        const microsoftAuth = MicrosoftAuthManager.getInstance();
+        const allTools = [
+          ...TodoTools,
+          ...(microsoftAuth ? MicrosoftTools : [])
+        ];
+        const tool = allTools.find((tool) => tool.name === toolName);
 
         log.info(`User ${user?.id || 'unknown'} attempting to call tool: ${toolName}`);
 

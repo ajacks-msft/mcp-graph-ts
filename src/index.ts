@@ -4,7 +4,39 @@ import express, { Request, Response } from "express";
 import { StreamableHTTPServer } from "./server.js";
 import { logger } from "./helpers/logs.js";
 import { securityMiddlewares } from "./server-middlewares.js";
+import { MicrosoftAuthManager } from "./auth/microsoft.js";
 const log = logger("index");
+
+// Initialize Microsoft authentication (optional)
+try {
+  const microsoftAuth = await MicrosoftAuthManager.initialize();
+  if (microsoftAuth) {
+    log.success("Microsoft authentication initialized successfully");
+  } else {
+    log.info("Microsoft authentication not configured - Microsoft tools will be unavailable");
+  }
+} catch (error) {
+  log.warn("Failed to initialize Microsoft authentication:", error);
+}
+
+// Import tools to log available tools
+import { TodoTools } from "./todoTools.js";
+import { MicrosoftTools } from "./microsoftTools.js";
+
+// Log available tools
+const microsoftAuth = MicrosoftAuthManager.getInstance();
+const allTools = [
+  ...TodoTools,
+  ...(microsoftAuth ? MicrosoftTools : [])
+];
+
+log.info(`Available tools: ${allTools.map(t => t.name).join(', ')}`);
+log.info(`Total tools registered: ${allTools.length}`);
+if (microsoftAuth) {
+  log.info(`Microsoft tools available: ${MicrosoftTools.map(t => t.name).join(', ')}`);
+} else {
+  log.warn("Microsoft tools not available - authentication not configured");
+}
 
 const server = new StreamableHTTPServer(
   new Server(

@@ -4,7 +4,7 @@
 			"type": "http",
 			"url": "https://mcp-container-ts.victoriouswater-684a0151.eastus2.azurecontainerapps.io/mcp",
 			"headers": {
-				"Authorization": "Bearer ${input:mcp-server-token}"
+				"Authorization": "Bearer ${input:remote-mcp-token}"
 			}
 		},
 		"mcp-server-remote": {
@@ -28,6 +28,12 @@
 			"password": true,
 			"id": "mcp-server-token",
 			"description": "Enter the token for the MCP server",
+			"type": "promptString"
+		},
+		{
+			"password": true,
+			"id": "remote-mcp-server-token",
+			"description": "Enter the token for the remote MCP server",
 			"type": "promptString"
 		}
 	]

@@ -342,6 +342,116 @@ https://<env-name>.<container-id>.<region>.azurecontainerapps.io/mcp
 
 ![alt](./docs/mcp-inspector.png)
 
+## Microsoft API Integration
+
+This MCP server includes powerful Microsoft API integration capabilities, providing access to both Microsoft Graph and Azure Resource Management APIs.
+
+### Available Tools
+
+#### 1. `microsoft_graph`
+Access Microsoft Graph API for Microsoft 365 data including:
+- **Users & Groups**: `/users`, `/groups`, `/me`
+- **Mail & Calendar**: `/me/messages`, `/me/events`
+- **Files & SharePoint**: `/me/drive`, `/sites`
+- **Teams & Chat**: `/teams`, `/chats`
+- **And much more!**
+
+**Features:**
+- Supports all HTTP methods (GET, POST, PUT, PATCH, DELETE)
+- Both v1.0 and beta API versions
+- Automatic pagination with `fetchAll` parameter
+- Advanced query support with `consistencyLevel: "eventual"`
+
+#### 2. `azure_resource`
+Manage Azure resources through Azure Resource Management API:
+- **Subscriptions**: `/subscriptions`
+- **Resource Groups**: `/subscriptions/{id}/resourceGroups`
+- **Virtual Machines**: `/subscriptions/{id}/resourceGroups/{rg}/providers/Microsoft.Compute/virtualMachines`
+- **Storage Accounts**: `/subscriptions/{id}/resourceGroups/{rg}/providers/Microsoft.Storage/storageAccounts`
+- **And all other Azure resources!**
+
+#### 3. `microsoft_auth_status`
+Check authentication status, view current permissions/scopes, and manage tokens.
+
+### Authentication Modes
+
+The server supports multiple authentication modes:
+
+#### Interactive Authentication (Default)
+Perfect for development and testing:
+```env
+USE_INTERACTIVE=true
+# Optional: TENANT_ID=your-tenant-id
+# Optional: CLIENT_ID=your-client-id
+```
+
+#### Client Credentials (Production)
+For automated scenarios:
+```env
+TENANT_ID=your-tenant-id
+CLIENT_ID=your-client-id
+CLIENT_SECRET=your-client-secret
+```
+
+#### Certificate Authentication
+For enhanced security:
+```env
+USE_CERTIFICATE=true
+TENANT_ID=your-tenant-id
+CLIENT_ID=your-client-id
+CERTIFICATE_PATH=/path/to/certificate.pfx
+```
+
+#### Client-Provided Token
+For external token management:
+```env
+USE_CLIENT_TOKEN=true
+ACCESS_TOKEN=your-access-token
+```
+
+### Configuration Options
+
+- `USE_GRAPH_BETA=true` - Enable Microsoft Graph beta endpoints (default: true)
+- `REDIRECT_URI` - Custom redirect URI for interactive authentication
+
+### Permission Requirements
+
+Microsoft tools are protected by role-based permissions:
+- **ADMIN role**: Full access to all Microsoft tools
+- **USER role**: Access to Microsoft Graph only
+- **READONLY role**: No Microsoft tool access
+
+### Getting Started with Microsoft APIs
+
+1. **Quick Start (Interactive)**: No configuration needed! The server uses secure defaults for development.
+
+2. **Production Setup**: Register an app in Azure Active Directory and configure environment variables.
+
+3. **Testing**: Use the `microsoft_auth_status` tool to verify authentication and view available scopes.
+
+### Example Usage
+
+```json
+{
+  "name": "microsoft_graph",
+  "arguments": {
+    "path": "/me",
+    "method": "get"
+  }
+}
+```
+
+```json
+{
+  "name": "azure_resource",
+  "arguments": {
+    "path": "/subscriptions",
+    "method": "get",
+    "apiVersion": "2021-04-01"
+  }
+}
+```
+
 ## Next Steps
 
 - Learn more about [Model Context Protocol](https://modelcontextprotocol.io/)

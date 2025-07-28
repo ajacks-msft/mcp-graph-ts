@@ -16,7 +16,10 @@ export enum Permission {
   UPDATE_TODOS = 'update:todos',
   DELETE_TODOS = 'delete:todos',
   LIST_TOOLS = 'list:tools',
-  CALL_TOOLS = 'call:tools'
+  CALL_TOOLS = 'call:tools',
+  MICROSOFT_GRAPH = 'microsoft:graph',
+  AZURE_RESOURCE = 'azure:resource',
+  MICROSOFT_AUTH = 'microsoft:auth'
 }
 
 // Role-permission mapping
@@ -27,14 +30,18 @@ const rolePermissions: Record<UserRole, Permission[]> = {
     Permission.UPDATE_TODOS,
     Permission.DELETE_TODOS,
     Permission.LIST_TOOLS,
-    Permission.CALL_TOOLS
+    Permission.CALL_TOOLS,
+    Permission.MICROSOFT_GRAPH,
+    Permission.AZURE_RESOURCE,
+    Permission.MICROSOFT_AUTH
   ],
   [UserRole.USER]: [
     Permission.READ_TODOS,
     Permission.CREATE_TODOS,
     Permission.UPDATE_TODOS,
     Permission.LIST_TOOLS,
-    Permission.CALL_TOOLS
+    Permission.CALL_TOOLS,
+    Permission.MICROSOFT_GRAPH
   ],
   [UserRole.READONLY]: [
     Permission.READ_TODOS,
