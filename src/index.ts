@@ -7,6 +7,18 @@ import { securityMiddlewares } from "./server-middlewares.js";
 import { MicrosoftAuthManager } from "./auth/microsoft.js";
 const log = logger("index");
 
+// Log environment configuration for debugging
+log.info("=== ENVIRONMENT CONFIGURATION ===");
+log.info(`NODE_ENV: ${process.env.NODE_ENV || 'undefined'}`);
+log.info(`PORT: ${process.env.PORT || 'undefined'}`);
+log.info(`DEBUG: ${process.env.DEBUG || 'undefined'}`);
+log.info(`ALLOWED_ORIGINS: ${process.env.ALLOWED_ORIGINS || 'undefined'}`);
+log.info(`JWT_SECRET available: ${!!process.env.JWT_SECRET}`);
+log.info(`MICROSOFT_CLIENT_ID available: ${!!process.env.MICROSOFT_CLIENT_ID}`);
+log.info(`MICROSOFT_CLIENT_SECRET available: ${!!process.env.MICROSOFT_CLIENT_SECRET}`);
+log.info(`MICROSOFT_TENANT_ID available: ${!!process.env.MICROSOFT_TENANT_ID}`);
+log.info("=====================================");
+
 // Initialize Microsoft authentication (optional)
 try {
   const microsoftAuth = await MicrosoftAuthManager.initialize();

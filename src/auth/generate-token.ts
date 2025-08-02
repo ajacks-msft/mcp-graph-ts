@@ -7,14 +7,33 @@ console.warn(
   "WARNING: Do not use this in production without proper security measures."
 );
 
-import { writeFileSync } from "fs";
+import { writeFileSync, readFileSync, existsSync } from "fs";
 import { randomBytes } from "crypto";
 import jwt from "jsonwebtoken";
 import { UserRole } from "./authorization.js";
 
-// define dummy values for JWT_SECRET, JWT_EXPIRY, and PAYLOAD
-const JWT_SECRET = randomBytes(32).toString('base64');
-const JWT_EXPIRY = "1h";
+// Read existing .env file if it exists to preserve Microsoft Graph credentials
+let existingEnvContent = "";
+if (existsSync(".env")) {
+  existingEnvContent = readFileSync(".env", "utf-8");
+}
+
+// Extract existing Microsoft Graph credentials if they exist
+const extractEnvVar = (content: string, varName: string): string | null => {
+  const match = content.match(new RegExp(`^${varName}=["']?([^"'\\n\\r]+)["']?`, "m"));
+  return match ? match[1] : null;
+};
+
+const existingTenantId = extractEnvVar(existingEnvContent, "TENANT_ID");
+const existingClientId = extractEnvVar(existingEnvContent, "CLIENT_ID");
+const existingClientSecret = extractEnvVar(existingEnvContent, "CLIENT_SECRET");
+
+// Use existing JWT_SECRET if available, otherwise generate new one
+const existingJwtSecret = extractEnvVar(existingEnvContent, "JWT_SECRET");
+const JWT_SECRET = existingJwtSecret || randomBytes(32).toString('base64');
+
+// Set 30-day expiration
+const JWT_EXPIRY = "30d";
 const JWT_AUDIENCE = "mcp-client";
 const JWT_ISSUER = "mcp-server";
 const PAYLOAD = {
@@ -30,13 +49,27 @@ const token = jwt.sign(PAYLOAD, JWT_SECRET, {
   audience: JWT_AUDIENCE,
 });
 
-// write the token to a file .env
-writeFileSync(
-  ".env",
-`JWT_AUDIENCE="${JWT_AUDIENCE}"
-JWT_ISSUER="${JWT_ISSUER}"
-JWT_EXPIRY="${JWT_EXPIRY}"
-JWT_SECRET="${JWT_SECRET}"
-JWT_TOKEN="${token}"`,
-  { flag: "a" }
-);
+// Build .env content preserving Microsoft Graph credentials
+let envContent = "";
+
+// Add Microsoft Graph credentials if they exist
+if (existingTenantId && existingClientId && existingClientSecret) {
+  envContent += `TENANT_ID="${existingTenantId}"\n`;
+  envContent += `CLIENT_ID="${existingClientId}"\n`;
+  envContent += `CLIENT_SECRET="${existingClientSecret}"\n\n`;
+}
+
+// Add JWT configuration
+envContent += `JWT_AUDIENCE="${JWT_AUDIENCE}"\n`;
+envContent += `JWT_ISSUER="${JWT_ISSUER}"\n`;
+envContent += `JWT_EXPIRY="${JWT_EXPIRY}"\n`;
+envContent += `JWT_SECRET="${JWT_SECRET}"\n`;
+envContent += `JWT_TOKEN="${token}"\n`;
+
+// Write the complete .env file (overwrite to avoid duplicates)
+writeFileSync(".env", envContent);
+
+console.log("✅ 30-day JWT token generated successfully!");
+console.log(`📅 Generated at: ${new Date().toISOString()}`);
+console.log(`⏰ Expires at: ${new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()}`);
+console.log("🔧 Updated .env file with new token while preserving Microsoft Graph credentials");

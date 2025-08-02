@@ -1,7 +1,9 @@
 import chalk, { ChalkInstance } from 'chalk';
 import debug from 'debug';
 
-const isDevelopment = process.env.NODE_ENV === 'development';
+// force on development mode
+const isDevelopment = true;
+
 const REDACTED = '<REDACTED>';
 const debugNamespace = process.env.DEBUG || (isDevelopment ? 'mcp:*' : '');
 if (debugNamespace) {

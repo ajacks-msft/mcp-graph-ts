@@ -45,12 +45,23 @@ export class JWTService {
     }
 
     try {
-        console.log(this.AUDIENCE, this.ISSUER);
+      log.info('Verifying JWT token...');
+      log.info(`JWT_SECRET available: ${!!this.SECRET}`);
+      log.info(`JWT_ISSUER: ${this.ISSUER}`);
+      log.info(`JWT_AUDIENCE: ${this.AUDIENCE}`);
+      
       const payload = jwt.verify(token, this.SECRET, {
         issuer: this.ISSUER,
         audience: this.AUDIENCE
       }) as JWTPayload;
 
+      log.info('JWT verification successful, payload:', {
+        id: payload.id,
+        email: payload.email,
+        role: payload.role,
+        iat: payload.iat ? new Date(payload.iat * 1000).toISOString() : 'N/A',
+        exp: payload.exp ? new Date(payload.exp * 1000).toISOString() : 'N/A'
+      });
 
       return {
         id: payload.id,
@@ -61,10 +72,11 @@ export class JWTService {
         exp: payload.exp
       };
     } catch (error) {
+      log.error('JWT verification failed:', error);
       if (error instanceof jwt.TokenExpiredError) {
         throw new Error('Token expired');
       } else if (error instanceof jwt.JsonWebTokenError) {
-        throw new Error('Invalid token' + error.message);
+        throw new Error('Invalid token: ' + error.message);
       } else {
         throw new Error('Token verification failed');
       }
@@ -73,11 +85,31 @@ export class JWTService {
 }
 
 export function authenticateJWT(req: Request, res: Response, next: NextFunction): void {
+  const requestId = (req as any).requestId || 'unknown';
   const authHeader = req.headers.authorization;
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
 
+  log.info(`[${requestId}] === JWT AUTHENTICATION ===`);
+  log.info(`[${requestId}] Authorization header present: ${!!authHeader}`);
+  log.info(`[${requestId}] Token extracted: ${!!token}`);
+  log.info(`[${requestId}] Token length: ${token?.length || 0}`);
+  
+  if (token) {
+    // Log token structure without revealing the actual token
+    try {
+      const parts = token.split('.');
+      log.info(`[${requestId}] Token parts count: ${parts.length} (expected: 3)`);
+      if (parts.length === 3) {
+        const header = JSON.parse(Buffer.from(parts[0], 'base64').toString());
+        log.info(`[${requestId}] Token header:`, header);
+      }
+    } catch (e) {
+      log.warn(`[${requestId}] Failed to parse token structure:`, e);
+    }
+  }
+
   if (!token) {
-    log.warn('Authentication failed: No token provided', { ip: req.ip });
+    log.warn(`[${requestId}] Authentication failed: No token provided`, { ip: req.ip });
     res.status(401).json({ 
       error: 'Authentication required',
       message: 'Bearer token must be provided in Authorization header'
@@ -86,22 +118,32 @@ export function authenticateJWT(req: Request, res: Response, next: NextFunction)
   }
 
   try {
+    log.info(`[${requestId}] Attempting to verify token...`);
     const user = JWTService.verifyToken(token);
+    
+    log.info(`[${requestId}] Token verification successful`);
+    log.info(`[${requestId}] User ID: ${user.id}`);
+    log.info(`[${requestId}] User role: ${user.role}`);
+    log.info(`[${requestId}] User permissions: ${user.permissions?.join(', ') || 'none'}`);
     
     // Check if token is about to expire (within 5 minutes)
     const now = Math.floor(Date.now() / 1000);
     const timeToExpiry = (user.exp || 0) - now;
     
+    log.info(`[${requestId}] Token expiry: ${new Date((user.exp || 0) * 1000).toISOString()}`);
+    log.info(`[${requestId}] Time to expiry: ${timeToExpiry} seconds`);
+    
     if (timeToExpiry < 300) { // 5 minutes
-      log.warn(`Token expiring soon for user ${user.id}`, { timeToExpiry });
+      log.warn(`[${requestId}] Token expiring soon for user ${user.id}`, { timeToExpiry });
     }
 
     (req as any).user = user;
-    log.info(`User authenticated: ${user.id} (${user.role})`);
+    log.success(`[${requestId}] User authenticated: ${user.id} (${user.role})`);
     next();
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    log.warn('Authentication failed:', errorMessage, { ip: req.ip });
+    log.error(`[${requestId}] Authentication failed:`, errorMessage, { ip: req.ip });
+    log.error(`[${requestId}] Error details:`, error);
     res.status(403).json({ 
       error: 'Invalid token',
       message: errorMessage

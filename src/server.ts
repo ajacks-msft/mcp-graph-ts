@@ -51,29 +51,35 @@ export class StreamableHTTPServer {
   }
 
   async handleGetRequest(req: Request, res: Response) {
-    res.status(405).json(this.createRPCErrorResponse('Method not allowed.'));
-    log.info('Responded to GET with 405 Method Not Allowed');
+    const requestId = (req as any).requestId || 'unknown';
+    const errorResponse = this.createRPCErrorResponse('Method not allowed.');
+    log.info(`[${requestId}] GET request not allowed - responding with 405`);
+    log.info(`[${requestId}] Error response:`, errorResponse);
+    res.status(405).json(errorResponse);
+    log.info(`[${requestId}] Responded to GET with 405 Method Not Allowed`);
   }
 
   async handlePostRequest(req: Request, res: Response) {
-    log.info(`POST ${req.originalUrl} (${req.ip}) - payload:`, req.body);
+    const requestId = (req as any).requestId || 'unknown';
+    log.info(`[${requestId}] POST ${req.originalUrl} (${req.ip}) - payload:`, req.body);
     
     // Extract user from request (set by authentication middleware)
     this.currentUser = (req as any).user as AuthenticatedUser;
+    log.info(`[${requestId}] Authenticated user: ${this.currentUser?.id || 'none'} with role: ${this.currentUser?.role || 'none'}`);
     
     try {
       const transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: undefined,
       });
 
-      log.info('Connecting transport to server...');
+      log.info(`[${requestId}] Connecting transport to server...`);
 
       await this.server.connect(transport);
-      log.success('Transport connected. Handling request...');
+      log.success(`[${requestId}] Transport connected. Handling request...`);
 
       await transport.handleRequest(req, res, req.body);
       res.on('close', () => {
-        log.success('Request closed by client');
+        log.success(`[${requestId}] Request closed by client`);
         transport.close();
         this.server.close();
         this.currentUser = null; // Clear user after request
@@ -81,15 +87,30 @@ export class StreamableHTTPServer {
 
       await this.sendMessages(transport);
       log.success(
-        `POST request handled successfully (status=${res.statusCode})`
+        `[${requestId}] POST request handled successfully (status=${res.statusCode})`
       );
     } catch (error) {
-      log.error('Error handling MCP request:', error);
+      log.error(`[${requestId}] Error handling MCP request:`, error);
+      
+      // Log additional error details
+      if (error instanceof Error) {
+        log.error(`[${requestId}] Error name: ${error.name}`);
+        log.error(`[${requestId}] Error message: ${error.message}`);
+        log.error(`[${requestId}] Error stack:`, error.stack);
+      }
+      
+      // Log request context for debugging
+      log.error(`[${requestId}] Request context - URL: ${req.originalUrl}, Method: ${req.method}, Body size: ${JSON.stringify(req.body || {}).length}`);
+      
       if (!res.headersSent) {
+        const errorResponse = this.createRPCErrorResponse('Internal server error.');
+        log.error(`[${requestId}] Sending error response:`, errorResponse);
         res
           .status(500)
-          .json(this.createRPCErrorResponse('Internal server error.'));
-        log.error('Responded with 500 Internal Server Error');
+          .json(errorResponse);
+        log.error(`[${requestId}] Responded with 500 Internal Server Error`);
+      } else {
+        log.error(`[${requestId}] Cannot send error response - headers already sent`);
       }
     }
   }
@@ -97,25 +118,30 @@ export class StreamableHTTPServer {
   private setupServerRequestHandlers() {
     this.server.setRequestHandler(ListToolsRequestSchema, async (request) => {
       const user = this.currentUser;
+      const requestId = Math.random().toString(36).substring(7);
       
-      log.info(`Tool list requested by user: ${user?.id || 'unknown'} with role: ${user?.role || 'none'}`);
+      log.info(`[${requestId}] === LIST TOOLS REQUEST ===`);
+      log.info(`[${requestId}] Tool list requested by user: ${user?.id || 'unknown'} with role: ${user?.role || 'none'}`);
+      log.info(`[${requestId}] Request details:`, request);
       
       // Check if user has permission to list tools
       if (!user || !hasPermission(user, Permission.LIST_TOOLS)) {
-        log.warn(`User ${user?.id || 'unknown'} denied permission to list tools`);
-        return this.createRPCErrorResponse('Insufficient permissions to list tools');
+        log.warn(`[${requestId}] User ${user?.id || 'unknown'} denied permission to list tools`);
+        const errorResponse = this.createRPCErrorResponse('Insufficient permissions to list tools');
+        log.warn(`[${requestId}] Returning permission error:`, errorResponse);
+        return errorResponse;
       }
 
       // Get available tools based on authentication status
       const microsoftAuth = MicrosoftAuthManager.getInstance();
-      log.info(`Microsoft auth available: ${!!microsoftAuth}`);
+      log.info(`[${requestId}] Microsoft auth available: ${!!microsoftAuth}`);
       
       const allTools = [
         ...TodoTools,
         ...(microsoftAuth ? MicrosoftTools : [])
       ];
       
-      log.info(`Total tools before filtering: ${allTools.length} - ${allTools.map(t => t.name).join(', ')}`);
+      log.info(`[${requestId}] Total tools before filtering: ${allTools.length} - ${allTools.map(t => t.name).join(', ')}`);
 
       // Filter tools based on user permissions
       const allowedTools = allTools.filter(tool => {
@@ -123,15 +149,19 @@ export class StreamableHTTPServer {
         const userHasPermission = requiredPermissions.some((permission: Permission) => 
           hasPermission(user, permission)
         );
-        log.info(`Tool ${tool.name} requires [${requiredPermissions.join(', ')}] - user has access: ${userHasPermission}`);
+        log.info(`[${requestId}] Tool ${tool.name} requires [${requiredPermissions.join(', ')}] - user has access: ${userHasPermission}`);
         return userHasPermission;
       });
 
-      log.info(`User ${user.id} listed ${allowedTools.length} available tools`);
-      return {
+      log.info(`[${requestId}] User ${user.id} listed ${allowedTools.length} available tools: ${allowedTools.map(t => t.name).join(', ')}`);
+      
+      const response = {
         jsonrpc: JSON_RPC,
         tools: allowedTools,
       };
+      
+      log.info(`[${requestId}] Returning tools response:`, response);
+      return response;
     });
 
     this.server.setRequestHandler(
@@ -140,6 +170,12 @@ export class StreamableHTTPServer {
         const args = request.params.arguments;
         const toolName = request.params.name;
         const user = this.currentUser;
+        const requestId = Math.random().toString(36).substring(7); // Generate ID for this tool call
+        
+        log.info(`[${requestId}] === TOOL EXECUTION REQUEST ===`);
+        log.info(`[${requestId}] Tool name: ${toolName}`);
+        log.info(`[${requestId}] Arguments:`, args);
+        log.info(`[${requestId}] User: ${user?.id || 'unknown'} (${user?.role || 'none'})`);
         
         // Find tool from all available tools
         const microsoftAuth = MicrosoftAuthManager.getInstance();
@@ -149,16 +185,22 @@ export class StreamableHTTPServer {
         ];
         const tool = allTools.find((tool) => tool.name === toolName);
 
-        log.info(`User ${user?.id || 'unknown'} attempting to call tool: ${toolName}`);
+        log.info(`[${requestId}] User ${user?.id || 'unknown'} attempting to call tool: ${toolName}`);
+        log.info(`[${requestId}] Available tools: ${allTools.map(t => t.name).join(', ')}`);
 
         if (!user) {
-          log.warn(`Unauthenticated user attempted to call tool: ${toolName}`);
-          return this.createRPCErrorResponse('Authentication required');
+          log.warn(`[${requestId}] Unauthenticated user attempted to call tool: ${toolName}`);
+          const errorResponse = this.createRPCErrorResponse('Authentication required');
+          log.warn(`[${requestId}] Returning authentication error:`, errorResponse);
+          return errorResponse;
         }
 
         if (!tool) {
-          log.error(`Tool ${toolName} not found.`);
-          return this.createRPCErrorResponse(`Tool ${toolName} not found.`);
+          log.error(`[${requestId}] Tool ${toolName} not found.`);
+          log.error(`[${requestId}] Available tools were: ${allTools.map(t => t.name).join(', ')}`);
+          const errorResponse = this.createRPCErrorResponse(`Tool ${toolName} not found.`);
+          log.error(`[${requestId}] Returning tool not found error:`, errorResponse);
+          return errorResponse;
         }
 
         // Check tool-specific permissions
@@ -167,15 +209,22 @@ export class StreamableHTTPServer {
           hasPermission(user, permission)
         );
 
+        log.info(`[${requestId}] Tool ${toolName} requires permissions: [${requiredPermissions.join(', ')}]`);
+        log.info(`[${requestId}] User has required permission: ${hasRequiredPermission}`);
+
         if (!hasRequiredPermission) {
-          log.warn(`User ${user.id} denied permission to call tool: ${toolName}`);
-          return this.createRPCErrorResponse(`Insufficient permissions to call tool: ${toolName}`);
+          log.warn(`[${requestId}] User ${user.id} denied permission to call tool: ${toolName}`);
+          const errorResponse = this.createRPCErrorResponse(`Insufficient permissions to call tool: ${toolName}`);
+          log.warn(`[${requestId}] Returning permission error:`, errorResponse);
+          return errorResponse;
         }
 
         try {
+          log.info(`[${requestId}] Executing tool ${toolName}...`);
           const result = await tool.execute(args as any);
-          log.success(`User ${user.id} successfully executed tool ${toolName}. Result:`, result);
-          return {
+          log.success(`[${requestId}] User ${user.id} successfully executed tool ${toolName}. Result:`, result);
+          
+          const response = {
             jsonrpc: JSON_RPC,
             content: [
               {
@@ -186,11 +235,24 @@ export class StreamableHTTPServer {
               },
             ],
           };
+          
+          log.info(`[${requestId}] Returning successful response:`, response);
+          return response;
         } catch (error) {
-          log.error(`Error executing tool ${toolName} for user ${user.id}:`, error);
-          return this.createRPCErrorResponse(
+          log.error(`[${requestId}] Error executing tool ${toolName} for user ${user.id}:`, error);
+          
+          // Log additional error details
+          if (error instanceof Error) {
+            log.error(`[${requestId}] Tool execution error name: ${error.name}`);
+            log.error(`[${requestId}] Tool execution error message: ${error.message}`);
+            log.error(`[${requestId}] Tool execution error stack:`, error.stack);
+          }
+          
+          const errorResponse = this.createRPCErrorResponse(
             `Error executing tool ${toolName}: ${error}`
           );
+          log.error(`[${requestId}] Returning tool execution error:`, errorResponse);
+          return errorResponse;
         }
       }
     );
